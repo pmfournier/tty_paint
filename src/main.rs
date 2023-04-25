@@ -7,10 +7,10 @@ use libc;
 pub mod console_codes {
     pub const CLEAR: &str = "\x1b[2J";
     pub const MOUSE_POS_REPORT: &str = "\x1b[?1002h";
-    pub const MOUSE_PIXEL_REPORT: &str = "\x1b[?1006h";
+    pub const MOUSE_PIXEL_REPORT: &str = "\x1b[?1016h";
     pub const HIDE_CURSOR: &str = "\x1b[?25l";
 
-    pub fn goto(x: u32, y: u32) -> String {
+    pub fn goto(x: usize, y: usize) -> String {
         return format!("\x1b[{};{}H", x, y);
     }
 }
@@ -161,13 +161,49 @@ fn init_term() {
     {
         let stdin_fd = libc::STDIN_FILENO;
         let termios = Termios::from_fd(stdin_fd).unwrap();
-        let mut new_termios = termios.clone();  // make a mutable copy of termios 
+        let mut new_termios = termios.clone();  // make a mutable copy of termios
                                                 // that we will modify
         new_termios.c_lflag &= !(ICANON | ECHO); // no echo and canonical mode
         tcsetattr(stdin_fd, TCSANOW, &mut new_termios).unwrap();
     }
 
 }
+
+
+const SUBVAL_TO_UTF8: &[&str] = &[
+  " ", // 0
+
+  "▘", // 1
+
+  "▝",
+
+  "▀",
+
+  "▖",
+
+  "▌",
+
+  "▞",
+
+  "▛",
+
+  "▗",
+
+  "▚",
+
+  "▐",
+
+  "▜",
+
+  "▄",
+
+  "▙",
+
+  "▟",
+
+  "█",
+];
+
 
 fn main() {
     init_term();
@@ -176,6 +212,7 @@ fn main() {
     stdout.write(format!("{}{}{}{}", console_codes::CLEAR, console_codes::HIDE_CURSOR, console_codes::MOUSE_POS_REPORT, console_codes::MOUSE_PIXEL_REPORT).as_bytes()).unwrap();
     stdout.flush().unwrap();
 
+    let mut image_buf = [[0u8; 1000]; 1000];
     let mut stdin = io::stdin().lock();
     loop {
         let buf = stdin.fill_buf().unwrap();
@@ -189,7 +226,16 @@ fn main() {
             ParseResult::Complete(n, mouse_ev) => {
                 stdin.consume(n+1);
                 if mouse_ev.release == false {
-                    stdout.write(format!("{}▒", console_codes::goto(mouse_ev.y, mouse_ev.x)).as_bytes()).unwrap();
+                    // storage is twice the density of a character in each axis
+                    let stor_x = (mouse_ev.x / 5) as usize;
+                    let stor_y = (mouse_ev.y / 10) as usize;
+                    let char_x = stor_x >> 1;
+                    let char_y = stor_y >> 1;
+                    let sub_x = mouse_ev.x & 1;
+                    let sub_y = mouse_ev.y & 1;
+                    let current_char_pixels = &mut image_buf[stor_x][stor_y];
+                    *current_char_pixels |= (1 << (sub_x | (sub_y << 1)));
+                    stdout.write(format!("{}{}", console_codes::goto(char_y, char_x), SUBVAL_TO_UTF8[*current_char_pixels as usize]).as_bytes()).unwrap();
                     stdout.flush().unwrap();
                 }
             }

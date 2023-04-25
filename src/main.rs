@@ -227,15 +227,13 @@ fn main() {
                 stdin.consume(n+1);
                 if mouse_ev.release == false {
                     // storage is twice the density of a character in each axis
-                    let stor_x = (mouse_ev.x / 5) as usize;
-                    let stor_y = (mouse_ev.y / 10) as usize;
-                    let char_x = stor_x >> 1;
-                    let char_y = stor_y >> 1;
+                    let stor_x = (mouse_ev.x / 10) as usize;
+                    let stor_y = (mouse_ev.y / 20) as usize;
                     let sub_x = mouse_ev.x & 1;
                     let sub_y = mouse_ev.y & 1;
                     let current_char_pixels = &mut image_buf[stor_x][stor_y];
-                    *current_char_pixels |= (1 << (sub_x | (sub_y << 1)));
-                    stdout.write(format!("{}{}", console_codes::goto(char_y, char_x), SUBVAL_TO_UTF8[*current_char_pixels as usize]).as_bytes()).unwrap();
+                    *current_char_pixels |= 1 << (sub_x | (sub_y << 1));
+                    stdout.write(format!("{}{}", console_codes::goto(stor_y+1, stor_x+1), SUBVAL_TO_UTF8[*current_char_pixels as usize]).as_bytes()).unwrap();
                     stdout.flush().unwrap();
                 }
             }
